@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalenteri</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #f5f2ec;
+    --surface: #ffffff;
+    --border: #ddd8ce;
+    --text: #1a1714;
+    --muted: #8a8278;
+    --accent: #b84a2e;
+    --accent-light: #f5e8e4;
+    --weekend: #6b4f3a;
+    --weekend-bg: #faf7f4;
+    --today-bg: #b84a2e;
+    --today-text: #ffffff;
+    --holiday-text: #b84a2e;
+    --week-bg: #f0ece4;
+    --week-text: #8a8278;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+    --header-bg: #1a1714;
+    --header-text: #f5f2ec;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 40px;
+  }
+
+  /* ── Header ── */
+  .site-header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+  }
+
+  .site-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    letter-spacing: -0.01em;
+    color: var(--header-text);
+    margin-right: 4px;
+  }
+
+  .header-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .header-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255,255,255,0.15);
+    flex-shrink: 0;
+  }
+
+  .year-nav { display: flex; align-items: center; gap: 8px; }
+
+  .year-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: var(--header-text);
+    width: 32px; height: 32px;
+    border-radius: 7px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+  }
+  .year-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+  .year-btn:active { transform: scale(0.96); }
+
+  #year-display {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    min-width: 72px;
+    text-align: center;
+    color: var(--header-text);
+    letter-spacing: -0.02em;
+  }
+
+  .hdr-btn {
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.22);
+    color: var(--header-text);
+    background: rgba(255,255,255,0.08);
+    padding: 5px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
+    display: flex; align-items: center; gap: 5px;
+    height: 32px;
+  }
+  .hdr-btn:hover { background: rgba(255,255,255,0.18); }
+  .hdr-btn:active { transform: scale(0.96); }
+  .hdr-btn.accent { background: var(--accent); border-color: var(--accent); }
+  .hdr-btn.accent:hover { background: #a03d24; }
+  .hdr-btn.selected-memo { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5); }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 8px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.72rem;
+    color: var(--muted);
+    align-items: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; }
+  .ld-today { background: var(--accent); }
+  .ld-holiday { background: var(--accent-light); border: 1.5px solid var(--accent); }
+  .ld-weekend { color: var(--weekend); background: var(--weekend-bg); border: 1.5px solid var(--border); }
+  .ld-week { background: var(--week-bg); border: 1.5px solid var(--border); }
+
+  /* ── Calendar grid ── */
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 24px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  .month-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .month-header {
+    padding: 11px 16px 9px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .month-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.2rem; color: var(--text); letter-spacing: -0.01em;
+  }
+  .month-year-small { font-size: 0.78rem; color: var(--muted); font-weight: 400; }
+
+  .dow-row {
+    display: grid;
+    grid-template-columns: 36px repeat(7, 1fr);
+    border-bottom: 1px solid var(--border);
+  }
+  .dow-cell {
+    padding: 4px 0; text-align: center;
+    font-size: 0.65rem; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .dow-cell:nth-child(7), .dow-cell:nth-child(8) { color: var(--weekend); }
+  .dow-week-label {
+    font-size: 0.6rem; color: var(--week-text); text-align: center;
+    padding: 4px 0; font-family: 'DM Mono', monospace;
+  }
+
+  .week-row {
+    display: grid;
+    grid-template-columns: 36px repeat(7, 1fr);
+    border-bottom: 1px solid var(--border);
+  }
+  .week-row:last-child { border-bottom: none; }
+
+  .week-num {
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; font-size: 0.62rem;
+    color: var(--week-text); background: var(--week-bg);
+    border-right: 1px solid var(--border);
+  }
+
+  /* ── Day cell ── */
+  .day-cell {
+    position: relative;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    padding: 4px 2px 3px;
+    min-height: 42px;
+    cursor: default;
+    transition: background 0.1s, filter 0.1s;
+    overflow: hidden;
+  }
+  .day-cell:hover:not(.empty) { filter: brightness(0.94); }
+  .day-cell.empty { pointer-events: none; }
+  .day-cell.has-memo { cursor: pointer; }
+
+  .day-num {
+    font-size: 0.8rem; font-weight: 500;
+    line-height: 1;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    transition: background 0.15s;
+    position: relative; z-index: 1;
+  }
+
+  .day-cell.weekend { background: var(--weekend-bg); }
+  .day-cell.weekend .day-num { color: var(--weekend); font-weight: 600; }
+  .day-cell.holiday .day-num { color: var(--holiday-text); font-weight: 700; }
+  .day-cell.holiday:not(.today):not(.has-memo) { background: var(--accent-light); }
+
+  .holiday-name {
+    font-size: 0.5rem; color: var(--accent); text-align: center;
+    line-height: 1.2; max-width: 100%; overflow: hidden;
+    padding: 1px 1px 0; font-weight: 500; position: relative; z-index: 1;
+  }
+
+  .day-cell.today .day-num {
+    background: var(--today-bg); color: var(--today-text);
+    font-weight: 700; box-shadow: 0 2px 8px rgba(184,74,46,0.35);
+  }
+
+  /* memo dot indicator */
+  .memo-dot {
+    position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%;
+    background: rgba(0,0,0,0.35);
+    z-index: 2;
+  }
+
+  /* selected memo highlight outline */
+  .day-cell.memo-selected {
+    outline: 2px solid rgba(0,0,0,0.5);
+    outline-offset: -2px;
+    z-index: 3;
+  }
+
+  /* ── Memo tooltip / popup ── */
+  .memo-popup {
+    display: none;
+    position: fixed;
+    z-index: 500;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    padding: 12px 14px;
+    max-width: 260px;
+    min-width: 180px;
+    pointer-events: none;
+  }
+  .memo-popup.visible { display: block; }
+  .memo-popup-title {
+    font-size: 0.68rem; color: var(--muted); font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .memo-popup-text {
+    font-size: 0.85rem; color: var(--text); line-height: 1.4;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .memo-popup-dates {
+    font-size: 0.68rem; color: var(--muted); margin-top: 6px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── Modal overlay ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface); border-radius: 14px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.22);
+    padding: 28px 28px 24px;
+    width: 420px; max-width: 95vw;
+    animation: modalIn 0.18s ease;
+  }
+  @keyframes modalIn {
+    from { transform: translateY(12px) scale(0.97); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+
+  .modal h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem; margin-bottom: 18px; color: var(--text);
+  }
+
+  .modal label {
+    display: block; font-size: 0.75rem; font-weight: 600;
+    color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase;
+    margin-bottom: 5px; margin-top: 14px;
+  }
+  .modal label:first-of-type { margin-top: 0; }
+
+  .modal input[type="date"],
+  .modal textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 0.88rem; font-family: 'DM Sans', sans-serif;
+    color: var(--text); background: var(--bg);
+    outline: none; transition: border-color 0.15s;
+  }
+  .modal input[type="date"]:focus,
+  .modal textarea:focus { border-color: var(--accent); }
+  .modal textarea { resize: vertical; min-height: 80px; }
+
+  .color-row {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px;
+  }
+  .color-swatch {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    border: 2.5px solid transparent;
+    transition: transform 0.12s, border-color 0.12s;
+    flex-shrink: 0;
+  }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.selected { border-color: var(--text); transform: scale(1.12); }
+
+  .custom-color-wrap {
+    display: flex; align-items: center; gap: 6px; margin-top: 4px;
+  }
+  .custom-color-wrap input[type="color"] {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border);
+    padding: 0; cursor: pointer; background: none;
+  }
+  .custom-color-label { font-size: 0.75rem; color: var(--muted); }
+
+  .modal-btns {
+    display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;
+  }
+  .btn-cancel {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; font-size: 0.85rem; cursor: pointer; color: var(--muted);
+  }
+  .btn-cancel:hover { background: var(--bg); }
+  .btn-save {
+    padding: 8px 18px; border-radius: 8px; border: none;
+    background: var(--accent); color: #fff; font-size: 0.85rem;
+    font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  .btn-save:hover { background: #a03d24; }
+  .btn-delete {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid #e0b8b0;
+    background: #fdf0ee; color: var(--accent); font-size: 0.85rem;
+    cursor: pointer; margin-right: auto;
+  }
+  .btn-delete:hover { background: var(--accent-light); }
+
+  /* selected memo bar (below header) */
+  .memo-bar {
+    display: none;
+    background: #fff;
+    border-bottom: 2px solid var(--border);
+    padding: 8px 24px;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: var(--text);
+  }
+  .memo-bar.visible { display: flex; }
+  .memo-bar-color {
+    width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+  }
+  .memo-bar-text { font-weight: 500; flex: 1; }
+  .memo-bar-dates { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--muted); }
+  .memo-bar-actions { display: flex; gap: 6px; margin-left: auto; }
+  .memo-bar-btn {
+    padding: 4px 12px; border-radius: 6px; font-size: 0.75rem;
+    font-weight: 500; cursor: pointer; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text);
+    transition: background 0.12s;
+  }
+  .memo-bar-btn:hover { background: var(--week-bg); }
+  .memo-bar-btn.del { border-color: #e0b8b0; color: var(--accent); background: #fdf0ee; }
+  .memo-bar-btn.del:hover { background: var(--accent-light); }
+  .memo-bar-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 1.1rem; line-height: 1;
+    padding: 2px 4px;
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-title">📅 Kalenteri</div>
+
+  <div class="header-group">
+    <div class="year-nav">
+      <button class="year-btn" id="prev-year" title="Edellinen vuosi">&#8592;</button>
+      <span id="year-display">2026</span>
+      <button class="year-btn" id="next-year" title="Seuraava vuosi">&#8594;</button>
+    </div>
+  </div>
+
+  <div class="header-divider"></div>
+
+  <div class="header-group">
+    <button class="hdr-btn" id="goto-today">Tänään ↓</button>
+    <button class="hdr-btn accent" id="open-add-memo">＋ Muistio</button>
+    <span id="selected-memo-btn-wrap" style="display:none">
+      <button class="hdr-btn selected-memo" id="edit-selected-memo">✏️ Muokkaa</button>
+    </span>
+    <button class="hdr-btn" id="export-csv" title="Tallenna muistiot CSV-tiedostona">⬇ CSV</button>
+    <label class="hdr-btn" title="Lataa muistiot CSV-tiedostosta" style="cursor:pointer">
+      ⬆ CSV <input type="file" id="import-csv" accept=".csv" style="display:none">
+    </label>
+  </div>
+</header>
+
+<!-- Selected memo info bar -->
+<div class="memo-bar" id="memo-bar">
+  <div class="memo-bar-color" id="memo-bar-color"></div>
+  <div class="memo-bar-text" id="memo-bar-text"></div>
+  <div class="memo-bar-dates" id="memo-bar-dates"></div>
+  <div class="memo-bar-actions">
+    <button class="memo-bar-btn" id="memo-bar-edit">✏️ Muokkaa</button>
+    <button class="memo-bar-btn del" id="memo-bar-delete">🗑 Poista</button>
+  </div>
+  <button class="memo-bar-close" id="memo-bar-close" title="Sulje">✕</button>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot ld-today"></div> Tänään</div>
+  <div class="legend-item"><div class="legend-dot ld-holiday"></div> Juhlapäivä</div>
+  <div class="legend-item"><div class="legend-dot ld-weekend" style="width:22px;height:13px;border-radius:3px;"></div> Viikonloppu</div>
+  <div class="legend-item"><div class="legend-dot ld-week" style="border-radius:3px;"></div> Viikkonro</div>
+</div>
+
+<div class="calendar-grid" id="calendar-grid"></div>
+
+<!-- Memo popup -->
+<div class="memo-popup" id="memo-popup">
+  <div class="memo-popup-title">Muistio</div>
+  <div class="memo-popup-text" id="memo-popup-text"></div>
+  <div class="memo-popup-dates" id="memo-popup-dates"></div>
+</div>
+
+<!-- Add/Edit Memo Modal -->
+<div class="modal-overlay" id="memo-modal">
+  <div class="modal">
+    <h2 id="modal-title">Lisää muistio</h2>
+    <label>Alkupäivä</label>
+    <input type="date" id="memo-start">
+    <label>Loppupäivä</label>
+    <input type="date" id="memo-end">
+    <label>Teksti</label>
+    <textarea id="memo-text" placeholder="Muistion teksti…"></textarea>
+    <label>Väri</label>
+    <div class="color-row" id="color-swatches"></div>
+    <div class="custom-color-wrap">
+      <input type="color" id="custom-color" value="#7c9cbf">
+      <span class="custom-color-label">Oma väri</span>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-delete" id="modal-delete" style="display:none">🗑 Poista</button>
+      <button class="btn-cancel" id="modal-cancel">Peruuta</button>
+      <button class="btn-save" id="modal-save">Tallenna</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  CONSTANTS & STATE
+// ─────────────────────────────────────────────
+const MONTHS_FI = ['Tammikuu','Helmikuu','Maaliskuu','Huhtikuu','Toukokuu','Kesäkuu',
+                   'Heinäkuu','Elokuu','Syyskuu','Lokakuu','Marraskuu','Joulukuu'];
+const MONTHS_SHORT = ['tam','hel','maa','huh','tou','kes','hei','elo','syy','lok','mar','jou'];
+
+const PALETTE = [
+  '#e8a87c','#f5c842','#7ec8a4','#6baed6','#b07ec8',
+  '#e87c7c','#7cc4c4','#c8b07e','#a8c87e','#c87ea8',
+];
+
+let currentYear = new Date().getFullYear();
+const today = new Date();
+const todayKey = fmtKey(today);
+
+// memos: array of { id, start, end, text, color }
+let memos = [];
+let nextId = 1;
+let selectedMemoId = null;
+let editingMemoId = null; // null = new
+
+// ─────────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────────
+function fmtKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function parseKey(k) {
+  const [y,m,d] = k.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function fmtDisplay(k) {
+  const d = parseKey(k);
+  return `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;
+}
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function isoWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const y = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  return Math.ceil((((d-y)/86400000)+1)/7);
+}
+function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+
+// ─────────────────────────────────────────────
+//  HOLIDAYS
+// ─────────────────────────────────────────────
+function easter(year) {
+  const a=year%19,b=Math.floor(year/100),c=year%100;
+  const d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25);
+  const g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4),k=c%4;
+  const l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const month=Math.floor((h+l-7*m+114)/31)-1;
+  const day=((h+l-7*m+114)%31)+1;
+  return new Date(year,month,day);
+}
+function getHolidays(year) {
+  const e=easter(year), h={};
+  const add=(d,name)=>{ h[fmtKey(d)]=name; };
+  add(new Date(year,0,1),'Uudenvuodenpäivä');
+  add(new Date(year,0,6),'Loppiainen');
+  add(new Date(year,4,1),'Vappu');
+  add(new Date(year,11,24),'Jouluaatto');
+  add(new Date(year,11,25),'Joulupäivä');
+  add(new Date(year,11,26),'Tapaninpäivä');
+  add(new Date(year,11,31),'Uudenvuodenaatto');
+  add(new Date(year,11,6),'Itsenäisyyspäivä');
+  // Midsummer: Saturday Jun 20-26
+  let juh=new Date(year,5,20);
+  while(juh.getDay()!==6) juh=addDays(juh,1);
+  add(addDays(juh,-1),'Juhannusaatto');
+  add(juh,'Juhannuspäivä');
+  // All Saints: Saturday Oct 31-Nov 6
+  let as=new Date(year,9,31);
+  while(as.getDay()!==6) as=addDays(as,1);
+  add(as,'Pyhäinpäivä');
+  // Mother's Day: 2nd Sunday May
+  let md=new Date(year,4,1);
+  while(md.getDay()!==0) md=addDays(md,1);
+  add(addDays(md,7),'Äitienpäivä');
+  // Father's Day: 2nd Sunday November
+  let fd=new Date(year,10,1);
+  while(fd.getDay()!==0) fd=addDays(fd,1);
+  add(addDays(fd,7),'Isänpäivä');
+  // Easter cluster
+  add(addDays(e,-2),'Pitkäperjantai');
+  add(addDays(e,-1),'Pääsiäislauantai');
+  add(e,'Pääsiäispäivä');
+  add(addDays(e,1),'2. pääsiäispäivä');
+  add(addDays(e,39),'Helatorstai');
+  add(addDays(e,49),'Helluntaipäivä');
+  return h;
+}
+
+// ─────────────────────────────────────────────
+//  MEMO HELPERS
+// ─────────────────────────────────────────────
+function getMemoForDate(dateKey) {
+  // returns first memo whose range includes dateKey
+  return memos.find(m => dateKey >= m.start && dateKey <= m.end) || null;
+}
+function getAllMemosForDate(dateKey) {
+  return memos.filter(m => dateKey >= m.start && dateKey <= m.end);
+}
+
+// ─────────────────────────────────────────────
+//  BUILD CALENDAR
+// ─────────────────────────────────────────────
+function buildCalendar(year) {
+  const holidays = getHolidays(year);
+  const grid = document.getElementById('calendar-grid');
+  grid.innerHTML = '';
+
+  for (let mo = 0; mo < 12; mo++) {
+    const card = document.createElement('div');
+    card.className = 'month-card';
+    if (year === today.getFullYear() && mo === today.getMonth()) card.id = 'current-month';
+
+    // Header
+    const mh = document.createElement('div');
+    mh.className = 'month-header';
+    mh.innerHTML = `<span class="month-name">${MONTHS_FI[mo]}</span><span class="month-year-small">${year}</span>`;
+    card.appendChild(mh);
+
+    // DOW header
+    const dowRow = document.createElement('div');
+    dowRow.className = 'dow-row';
+    const wlbl = document.createElement('div');
+    wlbl.className = 'dow-week-label';
+    wlbl.textContent = 'vko';
+    dowRow.appendChild(wlbl);
+    ['Ma','Ti','Ke','To','Pe','La','Su'].forEach(d => {
+      const dc = document.createElement('div');
+      dc.className = 'dow-cell';
+      dc.textContent = d;
+      dowRow.appendChild(dc);
+    });
+    card.appendChild(dowRow);
+
+    // Slots
+    const daysInMonth = new Date(year, mo+1, 0).getDate();
+    let offset = new Date(year, mo, 1).getDay();
+    offset = (offset + 6) % 7;
+    const slots = [];
+    for (let i = 0; i < offset; i++) slots.push(null);
+    for (let d = 1; d <= daysInMonth; d++) slots.push(d);
+    while (slots.length % 7 !== 0) slots.push(null);
+
+    for (let w = 0; w < slots.length/7; w++) {
+      const week = slots.slice(w*7, w*7+7);
+      const firstReal = week.find(x => x !== null);
+      if (week.every(x => x===null)) continue;
+
+      const wkDate = firstReal != null ? new Date(year, mo, firstReal) : null;
+      const wkNum = wkDate ? isoWeek(wkDate) : '';
+
+      const weekRow = document.createElement('div');
+      weekRow.className = 'week-row';
+      const wkCell = document.createElement('div');
+      wkCell.className = 'week-num';
+      wkCell.textContent = wkNum;
+      weekRow.appendChild(wkCell);
+
+      week.forEach((dayNum, col) => {
+        const cell = document.createElement('div');
+        cell.className = 'day-cell';
+
+        if (dayNum === null) {
+          cell.classList.add('empty');
+        } else {
+          const dt = new Date(year, mo, dayNum);
+          const key = fmtKey(dt);
+          const dow = dt.getDay();
+          const isWeekend = dow===0 || dow===6;
+          const holidayName = holidays[key];
+          const isHoliday = !!holidayName;
+          const isToday = (year===today.getFullYear()) && key===todayKey;
+
+          if (isWeekend) cell.classList.add('weekend');
+          if (isHoliday) cell.classList.add('holiday');
+          if (isToday)   cell.classList.add('today');
+
+          // Memo coloring
+          const memo = getMemoForDate(key);
+          if (memo) {
+            cell.classList.add('has-memo');
+            cell.style.backgroundColor = hexToRgba(memo.color, 0.22);
+            cell.style.borderBottom = `2px solid ${hexToRgba(memo.color, 0.5)}`;
+            if (memo.id === selectedMemoId) cell.classList.add('memo-selected');
+          }
+
+          const dn = document.createElement('div');
+          dn.className = 'day-num';
+          dn.textContent = dayNum;
+          cell.appendChild(dn);
+
+          if (isHoliday) {
+            const hn = document.createElement('div');
+            hn.className = 'holiday-name';
+            hn.textContent = holidayName;
+            cell.appendChild(hn);
+          }
+
+          if (memo) {
+            const dot = document.createElement('div');
+            dot.className = 'memo-dot';
+            dot.style.background = memo.color;
+            cell.appendChild(dot);
+          }
+
+          // Events
+          cell.addEventListener('click', (e) => handleDayClick(e, key));
+          cell.addEventListener('mouseenter', (e) => handleDayHover(e, key, true));
+          cell.addEventListener('mouseleave', () => handleDayHover(null, key, false));
+        }
+        weekRow.appendChild(cell);
+      });
+      card.appendChild(weekRow);
+    }
+    grid.appendChild(card);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  DAY INTERACTIONS
+// ─────────────────────────────────────────────
+const popup = document.getElementById('memo-popup');
+let popupTimeout = null;
+
+function handleDayClick(e, key) {
+  const memo = getMemoForDate(key);
+  if (!memo) { deselectMemo(); return; }
+  if (selectedMemoId === memo.id) { deselectMemo(); return; }
+  selectMemo(memo.id);
+  e.stopPropagation();
+}
+
+function handleDayHover(e, key, entering) {
+  clearTimeout(popupTimeout);
+  if (!entering) { popupTimeout = setTimeout(() => { popup.classList.remove('visible'); }, 120); return; }
+  const memo = getMemoForDate(key);
+  if (!memo) { popup.classList.remove('visible'); return; }
+
+  document.getElementById('memo-popup-text').textContent = memo.text;
+  document.getElementById('memo-popup-dates').textContent =
+    memo.start === memo.end ? fmtDisplay(memo.start)
+    : `${fmtDisplay(memo.start)} – ${fmtDisplay(memo.end)}`;
+  popup.classList.add('visible');
+  positionPopup(e);
+}
+
+function positionPopup(e) {
+  const pw = popup.offsetWidth || 240;
+  const ph = popup.offsetHeight || 100;
+  let x = e.clientX + 12;
+  let y = e.clientY + 12;
+  if (x + pw > window.innerWidth - 8)  x = e.clientX - pw - 8;
+  if (y + ph > window.innerHeight - 8) y = e.clientY - ph - 12;
+  popup.style.left = x + 'px';
+  popup.style.top  = y + 'px';
+}
+
+document.addEventListener('mousemove', (e) => {
+  if (popup.classList.contains('visible')) positionPopup(e);
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.day-cell') && !e.target.closest('.memo-bar') && !e.target.closest('.modal-overlay')) {
+    deselectMemo();
+  }
+});
+
+function selectMemo(id) {
+  selectedMemoId = id;
+  const memo = memos.find(m => m.id === id);
+  if (!memo) return;
+  // Show memo bar
+  document.getElementById('memo-bar-color').style.background = memo.color;
+  document.getElementById('memo-bar-text').textContent = memo.text;
+  document.getElementById('memo-bar-dates').textContent =
+    memo.start === memo.end ? fmtDisplay(memo.start)
+    : `${fmtDisplay(memo.start)} – ${fmtDisplay(memo.end)}`;
+  document.getElementById('memo-bar').classList.add('visible');
+  document.getElementById('selected-memo-btn-wrap').style.display = '';
+  buildCalendar(currentYear);
+}
+
+function deselectMemo() {
+  selectedMemoId = null;
+  document.getElementById('memo-bar').classList.remove('visible');
+  document.getElementById('selected-memo-btn-wrap').style.display = 'none';
+  buildCalendar(currentYear);
+}
+
+// ─────────────────────────────────────────────
+//  MODAL
+// ─────────────────────────────────────────────
+const modal = document.getElementById('memo-modal');
+
+// Build palette swatches
+const swatchRow = document.getElementById('color-swatches');
+let selectedColor = PALETTE[5]; // default red-ish
+PALETTE.forEach(c => {
+  const sw = document.createElement('div');
+  sw.className = 'color-swatch' + (c===selectedColor?' selected':'');
+  sw.style.background = c;
+  sw.dataset.color = c;
+  sw.addEventListener('click', () => {
+    selectedColor = c;
+    document.getElementById('custom-color').value = c;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    sw.classList.add('selected');
+  });
+  swatchRow.appendChild(sw);
+});
+
+document.getElementById('custom-color').addEventListener('input', (e) => {
+  selectedColor = e.target.value;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+});
+
+function openModal(memoId=null) {
+  editingMemoId = memoId;
+  const isEdit = memoId !== null;
+  document.getElementById('modal-title').textContent = isEdit ? 'Muokkaa muistiota' : 'Lisää muistio';
+  document.getElementById('modal-delete').style.display = isEdit ? '' : 'none';
+
+  if (isEdit) {
+    const m = memos.find(x=>x.id===memoId);
+    document.getElementById('memo-start').value = m.start;
+    document.getElementById('memo-end').value   = m.end;
+    document.getElementById('memo-text').value  = m.text;
+    selectedColor = m.color;
+    document.getElementById('custom-color').value = m.color;
+    document.querySelectorAll('.color-swatch').forEach(s => {
+      s.classList.toggle('selected', s.dataset.color === m.color);
+    });
+  } else {
+    const todayStr = fmtKey(today);
+    document.getElementById('memo-start').value = todayStr;
+    document.getElementById('memo-end').value   = todayStr;
+    document.getElementById('memo-text').value  = '';
+    selectedColor = PALETTE[5];
+    document.getElementById('custom-color').value = PALETTE[5];
+    document.querySelectorAll('.color-swatch').forEach((s,i) => {
+      s.classList.toggle('selected', i===5);
+    });
+  }
+
+  modal.classList.add('open');
+  setTimeout(()=>document.getElementById('memo-text').focus(),80);
+}
+
+function closeModal() {
+  modal.classList.remove('open');
+  editingMemoId = null;
+}
+
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if(e.target===modal) closeModal(); });
+
+document.getElementById('modal-save').addEventListener('click', () => {
+  const start = document.getElementById('memo-start').value;
+  const end   = document.getElementById('memo-end').value;
+  const text  = document.getElementById('memo-text').value.trim();
+  if (!start || !end || !text) { alert('Täytä kaikki kentät.'); return; }
+  if (start > end) { alert('Alkupäivä ei voi olla loppupäivän jälkeen.'); return; }
+
+  if (editingMemoId !== null) {
+    const m = memos.find(x=>x.id===editingMemoId);
+    m.start = start; m.end = end; m.text = text; m.color = selectedColor;
+    selectMemo(editingMemoId);
+  } else {
+    const newMemo = { id: nextId++, start, end, text, color: selectedColor };
+    memos.push(newMemo);
+    selectedMemoId = newMemo.id;
+  }
+  closeModal();
+  buildCalendar(currentYear);
+  if (selectedMemoId) selectMemo(selectedMemoId);
+});
+
+document.getElementById('modal-delete').addEventListener('click', () => {
+  if (!editingMemoId) return;
+  if (!confirm('Poistetaanko muistio?')) return;
+  memos = memos.filter(m=>m.id!==editingMemoId);
+  closeModal();
+  deselectMemo();
+});
+
+document.getElementById('open-add-memo').addEventListener('click', () => openModal(null));
+document.getElementById('edit-selected-memo').addEventListener('click', () => {
+  if (selectedMemoId) openModal(selectedMemoId);
+});
+document.getElementById('memo-bar-edit').addEventListener('click', () => {
+  if (selectedMemoId) openModal(selectedMemoId);
+});
+document.getElementById('memo-bar-delete').addEventListener('click', () => {
+  if (!selectedMemoId) return;
+  if (!confirm('Poistetaanko muistio?')) return;
+  memos = memos.filter(m=>m.id!==selectedMemoId);
+  deselectMemo();
+});
+document.getElementById('memo-bar-close').addEventListener('click', deselectMemo);
+
+// ─────────────────────────────────────────────
+//  CSV EXPORT
+// ─────────────────────────────────────────────
+document.getElementById('export-csv').addEventListener('click', () => {
+  if (memos.length === 0) { alert('Ei muistioita tallennettavana.'); return; }
+  const rows = [['id','start','end','text','color']];
+  memos.forEach(m => {
+    rows.push([m.id, m.start, m.end, '"'+m.text.replace(/"/g,'""')+'"', m.color]);
+  });
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'muistiot.csv';
+  a.click();
+});
+
+// ─────────────────────────────────────────────
+//  CSV IMPORT
+// ─────────────────────────────────────────────
+document.getElementById('import-csv').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const lines = ev.target.result.trim().split('\n');
+    const imported = [];
+    for (let i=1; i<lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      // Parse CSV line (handle quoted text field)
+      const match = line.match(/^(\d+),(\d{4}-\d{2}-\d{2}),(\d{4}-\d{2}-\d{2}),"?(.*?)"?,(#[0-9a-fA-F]{6})$/s);
+      if (!match) continue;
+      const [,id,start,end,text,color] = match;
+      imported.push({ id: parseInt(id), start, end, text: text.replace(/""/g,'"'), color });
+    }
+    if (imported.length === 0) { alert('Ei ladattavia muistioita CSV:ssä.'); return; }
+    if (!confirm(`Ladataan ${imported.length} muistiota? Nykyiset muistiot korvataan.`)) return;
+    memos = imported;
+    nextId = Math.max(...memos.map(m=>m.id)) + 1;
+    deselectMemo();
+    alert(`${imported.length} muistiota ladattu.`);
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ─────────────────────────────────────────────
+//  YEAR NAV & RENDER
+// ─────────────────────────────────────────────
+function render() {
+  document.getElementById('year-display').textContent = currentYear;
+  buildCalendar(currentYear);
+}
+
+document.getElementById('prev-year').addEventListener('click', () => { currentYear--; render(); });
+document.getElementById('next-year').addEventListener('click', () => { currentYear++; render(); });
+document.getElementById('goto-today').addEventListener('click', () => {
+  if (currentYear !== today.getFullYear()) {
+    currentYear = today.getFullYear();
+    render();
+    setTimeout(() => {
+      const el = document.getElementById('current-month');
+      if (el) el.scrollIntoView({behavior:'smooth',block:'start'});
+    }, 80);
+  } else {
+    const el = document.getElementById('current-month');
+    if (el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if (e.key==='ArrowLeft')  { currentYear--; render(); }
+  if (e.key==='ArrowRight') { currentYear++; render(); }
+  if (e.key==='Escape') { deselectMemo(); closeModal(); }
+});
+
+render();
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const el = document.getElementById('current-month');
+    if (el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  }, 200);
+});
+</script>
+</body>
+</html>
